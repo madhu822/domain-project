@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="353d73b1-71e6-48f7-95b5-dd582a5d11d8" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="madhu1100" database="mule8" />
+	</db:config>
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="973b2fd2-0644-4165-9b5f-2d7390049922" persistent="false"/>
+	<sub-flow name="condition" doc:id="233f29e8-baa2-4922-9e06-0ffe9fe77e47" >
+		<choice doc:name="Choice" doc:id="9b2afdd9-ab5f-4637-90e1-dbe51faf2e3e">
+			<when expression="#[sizeOf(payload) &gt; 0]">
+				<db:select doc:id="9db36673-3de0-42a9-92e4-f02d130bd99b" config-ref="Database_Config">
+			<db:sql><![CDATA[select *from demo4 where sno > :sno]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	sno : payload
+	
+}]]]></db:input-parameters>
+		</db:select>
+				<os:store doc:id="f4d75c1b-99cf-487f-8370-b88562c75ab4" key="sno" objectStore="Object_store">
+			<os:value><![CDATA[#[(payload.sno orderBy -$)[0]]]]></os:value>
+		</os:store>
+				<ee:transform doc:name="Transform Message" doc:id="142253bc-31d6-415b-bff3-40e059f9a50e">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="f2999dbd-c0a8-431d-9040-cd4e008bbae9" />
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Logger" doc:id="002faf97-c5e0-443a-aae2-0c4b5abdc0ca" message="records not found" />
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="watermarking-using-objectstoreFlow" doc:id="b482542b-c458-4e1b-a011-c8db31b0fcf5" >
+		<scheduler doc:name="Scheduler" doc:id="526eb674-4373-4ebd-9239-3a8d73d93c49" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="5" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger" doc:id="cbc032bd-1b13-4cc0-b36f-b9d933cb0de3" message="statred"/>
+		<os:retrieve doc:name="Retrieve" doc:id="c6091c02-cea7-4e8e-8655-6cf5bfd3fadd" key="sno" objectStore="Object_store">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<flow-ref doc:name="Flow Reference" doc:id="d2075cbb-08c4-46c5-bc70-4b073916c160" name="condition" />
+		<logger level="INFO" doc:name="Logger" doc:id="0ca278fb-a4de-4f46-8d6d-035f17aca0fc" message="uploaded"/>
+	</flow>
+</mule>
